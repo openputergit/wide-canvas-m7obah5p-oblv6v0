@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI MCQ Generator</title>
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        body {
+            background: linear-gradient(45deg, #93c5fd, #3b82f6);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-3xl mx-auto">
+        <div class="glass rounded-xl p-6 mb-8">
+            <h1 class="text-3xl font-bold text-white mb-4">AI MCQ Generator</h1>
+            <div id="topic-selector" class="mb-8">
+                <label class="block text-white mb-2">Select Topic:</label>
+                <select id="topic" class="w-full p-2 rounded glass text-white">
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="java">Java</option>
+                    <option value="cpp">C++</option>
+                </select>
+                <button onclick="generateQuestions()" class="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">Generate Questions</button>
+            </div>
+
+            <div id="quiz-container" class="hidden">
+                <div id="questions-list"></div>
+                <button onclick="submitQuiz()" class="mt-6 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition">Submit Quiz</button>
+            </div>
+
+            <div id="results-container" class="hidden">
+                <h2 class="text-2xl font-bold text-white mb-4">Results</h2>
+                <div id="results-list"></div>
+                <div id="related-questions" class="mt-6">
+                    <h3 class="text-xl font-bold text-white mb-2">Related Questions</h3>
+                    <div id="related-list"></div>
+                </div>
+                <button onclick="downloadPDF()" class="mt-6 bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700 transition">
+                    <i class="bi bi-download mr-2"></i>Download PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample questions database
+        const questionsDB = {
+            javascript: [
+                {
+                    question: "What is the output of typeof null?",
+                    options: ["object", "null", "undefined", "number"],
+                    correct: 0,
+                    related: "What is the difference between null and undefined?"
+                },
+                {
+                    question: "Which method removes the last element from an array?",
+                    options: ["pop()", "push()", "shift()", "unshift()"],
+                    correct: 0,
+                    related: "How do you add elements to the beginning of an array?"
+                }
+            ],
+            python: [
+                {
+                    question: "What is the correct file extension for Python files?",
+                    options: [".py", ".python", ".pt", ".pyt"],
+                    correct: 0,
+                    related: "What are Python's main features?"
+                }
+            ]
+        };
+
+        let currentQuestions = [];
+        let userAnswers = [];
+
+        function generateQuestions() {
+            const topic = document.getElementById('topic').value;
+            currentQuestions = questionsDB[topic];
+            userAnswers = new Array(currentQuestions.length).fill(null);
+            
+            const questionsHTML = currentQuestions.map((q, idx) => `
+                <div class="glass rounded-lg p-4 mb-4">
+                    <p class="text-white font-semibold mb-3">${idx + 1}. ${q.question}</p>
+                    <div class="space-y-2">
+                        ${q.options.map((opt, optIdx) => `
+                            <div class="flex items-center">
+                                <input type="radio" name="q${idx}" value="${optIdx}" 
+                                    onchange="updateAnswer(${idx}, ${optIdx})"
+                                    class="mr-2">
+                                <label class="text-white">${opt}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('questions-list').innerHTML = questionsHTML;
+            document.getElementById('quiz-container').classList.remove('hidden');
+            document.getElementById('results-container').classList.add('hidden');
+        }
+
+        function updateAnswer(questionIdx, answerIdx) {
+            userAnswers[questionIdx] = answerIdx;
+        }
+
+        function submitQuiz() {
+            let resultsHTML = '';
+            let score = 0;
+            let relatedHTML = '';
+
+            currentQuestions.forEach((q, idx) => {
+                const isCorrect = userAnswers[idx] === q.correct;
+                if (isCorrect) score++;
+
+                resultsHTML += `
+                    <div class="glass rounded-lg p-4 mb-4">
+                        <p class="text-white font-semibold">${idx + 1}. ${q.question}</p>
+                        <p class="text-white mt-2">Your answer: ${q.options[userAnswers[idx]]}</p>
+                        <p class="text-white">Correct answer: ${q.options[q.correct]}</p>
+                        <p class="${isCorrect ? 'text-green-400' : 'text-red-400'} mt-1">
+                            ${isCorrect ? 'Correct!' : 'Incorrect'}
+                        </p>
+                    </div>
+                `;
+
+                relatedHTML += `
+                    <div class="glass rounded-lg p-4 mb-4">
+                        <p class="text-white">${q.related}</p>
+                    </div>
+                `;
+            });
+
+            document.getElementById('results-list').innerHTML = `
+                <div class="glass rounded-lg p-4 mb-4">
+                    <p class="text-white text-xl">Score: ${score}/${currentQuestions.length}</p>
+                </div>
+                ${resultsHTML}
+            `;
+            document.getElementById('related-list').innerHTML = relatedHTML;
+            
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('results-container').classList.remove('hidden');
+        }
+
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(16);
+            doc.text("Quiz Results", 20, 20);
+            
+            let yPos = 40;
+            currentQuestions.forEach((q, idx) => {
+                doc.setFontSize(12);
+                doc.text(`${idx + 1}. ${q.question}`, 20, yPos);
+                yPos += 10;
+                doc.text(`Your answer: ${q.options[userAnswers[idx]]}`, 20, yPos);
+                yPos += 10;
+                doc.text(`Correct answer: ${q.options[q.correct]}`, 20, yPos);
+                yPos += 20;
+            });
+            
+            doc.save('quiz-results.pdf');
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
